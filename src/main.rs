@@ -19,7 +19,7 @@ use wrangler::preview::{HttpMethod, PreviewOpt};
 use wrangler::settings;
 use wrangler::settings::global_user::GlobalUser;
 use wrangler::settings::toml::TargetType;
-use wrangler::terminal::message::{Message, StdOut};
+use wrangler::terminal::message::{Message, Output, StdOut};
 use wrangler::terminal::{emoji, interactive, styles};
 use wrangler::version::background_check_for_updates;
 
@@ -862,9 +862,11 @@ fn run() -> Result<(), failure::Error> {
         let env = matches.value_of("env");
         let mut target = manifest.get_target(env, is_preview)?;
         let deploy_config = manifest.deploy_config(env)?;
-        let output_option =
-            matches.is_present("output") && matches.value_of("output") == Some("json");
-        commands::publish(&user, &mut target, deploy_config, output_option)?;
+        if matches.is_present("output") && matches.value_of("output") == Some("json") {
+            commands::publish(&user, &mut target, deploy_config, Output::Json)?;
+        } else {
+            commands::publish(&user, &mut target, deploy_config, Output::PlainText)?;
+        }
     } else if let Some(matches) = matches.subcommand_matches("subdomain") {
         log::info!("Getting project settings");
         let config_path = Path::new(

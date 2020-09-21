@@ -9,18 +9,15 @@ use crate::settings::toml::{DeployConfig, Zoneless};
 pub fn worker(
     user: &GlobalUser,
     deploy_config: &DeployConfig,
-) -> Result<(String, Vec<String>), failure::Error> {
+) -> Result<Vec<String>, failure::Error> {
     match deploy_config {
         DeployConfig::Zoneless(zoneless_config) => {
             // this is a zoneless deploy
             log::info!("publishing to workers.dev subdomain");
             let deploy_address = publish_zoneless(user, zoneless_config)?;
             let mut addresses = Vec::new();
-            addresses.push(deploy_address.clone());
-            Ok((
-                format!("Successfully published your script to {}", deploy_address),
-                addresses,
-            ))
+            addresses.push(deploy_address);
+            Ok(addresses)
         }
         DeployConfig::Zoned(zoned_config) => {
             // this is a zoned deploy
@@ -28,16 +25,10 @@ pub fn worker(
 
             let published_routes = publish_routes(&user, zoned_config)?;
 
-            let display_results: Vec<String> =
+            let addresses: Vec<String> =
                 published_routes.iter().map(|r| format!("{}", r)).collect();
 
-            Ok((
-                format!(
-                    "Deployed to the following routes:\n{}",
-                    &display_results.join("\n")
-                ),
-                display_results,
-            ))
+            Ok(addresses)
         }
     }
 }

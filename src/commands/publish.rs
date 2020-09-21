@@ -12,7 +12,7 @@ use crate::settings::global_user::GlobalUser;
 use crate::settings::toml::{DeployConfig, Target};
 use crate::sites;
 use crate::terminal::emoji;
-use crate::terminal::message::{Message, StdErr, StdOut};
+use crate::terminal::message::{Message, Output, StdErr, StdOut};
 use crate::upload;
 
 #[derive(Serialize, Deserialize, Default)]
@@ -26,7 +26,7 @@ pub fn publish(
     user: &GlobalUser,
     target: &mut Target,
     deploy_config: DeployConfig,
-    is_json_out: bool,
+    out: Output,
 ) -> Result<(), failure::Error> {
     validate_target_required_fields_present(target)?;
 
@@ -39,7 +39,6 @@ pub fn publish(
         }
         Err(e) => Err(e),
     }?;
-    let mut jsonout = PublishOutput::default();
     if let Some(site_config) = &target.site {
         let path = &site_config.bucket.clone();
         validate_bucket_location(path)?;
@@ -79,15 +78,20 @@ pub fn publish(
         upload::script(&upload_client, &target, Some(asset_manifest))?;
 
         match deploy::worker(&user, &deploy_config) {
-            Ok((result_msg, urls)) => {
-                if is_json_out {
-                    jsonout.success = true;
-                    jsonout.name = target.name.clone();
-                    jsonout.urls = urls;
-                    StdErr::success(&result_msg);
-                    StdOut::json_out(&jsonout);
-                } else {
-                    StdOut::success(&result_msg);
+            Ok(urls) => {
+                let result_msg = format!("Successfully published your script to {}", urls[0]);
+                match out {
+                    Output::Json => {
+                        let mut jsonout = PublishOutput::default();
+                        jsonout.success = true;
+                        jsonout.name = target.name.clone();
+                        jsonout.urls = urls;
+                        StdErr::success(&result_msg);
+                        StdOut::as_json(&jsonout);
+                    }
+                    Output::PlainText => {
+                        StdOut::success(&result_msg);
+                    }
                 }
                 Ok(())
             }
@@ -124,17 +128,21 @@ pub fn publish(
         let upload_client = http::legacy_auth_client(user);
 
         upload::script(&upload_client, &target, None)?;
-
         match deploy::worker(&user, &deploy_config) {
-            Ok((result_msg, urls)) => {
-                if is_json_out {
-                    jsonout.success = true;
-                    jsonout.name = target.name.clone();
-                    jsonout.urls = urls;
-                    StdErr::success(&result_msg);
-                    StdOut::json_out(&jsonout);
-                } else {
-                    StdOut::success(&result_msg);
+            Ok(urls) => {
+                let result_msg = format!("Successfully published your script to {}", urls[0]);
+                match out {
+                    Output::Json => {
+                        let mut jsonout = PublishOutput::default();
+                        jsonout.success = true;
+                        jsonout.name = target.name.clone();
+                        jsonout.urls = urls;
+                        StdErr::success(&result_msg);
+                        StdOut::as_json(&jsonout);
+                    }
+                    Output::PlainText => {
+                        StdOut::success(&result_msg);
+                    }
                 }
                 Ok(())
             }
